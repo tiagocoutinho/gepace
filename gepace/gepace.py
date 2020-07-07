@@ -56,6 +56,12 @@ def to_float_bool(text):
     return float(pressure), bool(int(in_limit))
 
 
+def to_sn(text):
+    names = "ui", "ctrl1", "ctrl2", "ao1", "ao2", "vfc1", "vfc2"
+    values = (int(to_nop(v)) for v in text.split(";"))
+    return dict(zip(names, values))
+
+
 def handle_reply(reply):
     if reply is None:
         return
@@ -76,30 +82,47 @@ def handle_sync_io(func, request, log):
     return reply
 
 
-def member(name, fget=to_nop, fset=None):
+def __member(name, fget=to_nop, fset=None, cache=False):
     assert not (fget is None and fset is None)
     cmd = name.upper()
-    if not cmd.startswith("*"):
+    if not cmd.startswith("*") and not cmd.startswith(":"):
         cmd = ":{}".format(cmd)
 
     def command(obj, value=None):
         request = cmd
+        getter = fget
         if value is None:
-            if fget is None:
+            if getter is None:
                 raise ValueError("{} is not readable".format(request))
-            request += "?"
+            if not request.endswith("?"):
+                request += "?"
         elif fset is None:
             raise ValueError("{} is not writable".format(request))
         else:
             set_command = "{} {}".format(request, fset(value))
-            if fget is None:
-                return obj._command(set_command)
+            if getter is None:
+                request = ':SYST:ERR'
+                getter = to_error
             request = "{};{}?".format(set_command, request)
-        return request, fget
+        return request, getter
 
     def get_set(obj, value=None):
-        request, fget = command(obj, value=value)
-        return obj._query(request, fget)
+        is_get = value is None
+        if is_get and cache:
+            cache_value = obj._cache.get(name)
+            if cache_value is not None:
+                return cache_value
+        request, getter = command(obj, value=value)
+        result = obj._query(request, getter)
+        if is_get or cache:
+            if asyncio.iscoroutine(result):
+                result = asyncio.ensure_future(result)
+                def cb(futur):
+                    obj._cache[name] = futur
+                result.add_done_callback(cb)
+            else:
+                obj._cache[name] = result
+        return result
 
     get_set.template = cmd
     get_set.command = command
@@ -107,28 +130,48 @@ def member(name, fget=to_nop, fset=None):
     return get_set
 
 
-def sub_member(prefix, name="", fget=lambda x: x, fset=None):
+def member(prefix, name="", fget=to_nop, fset=None, cache=False):
     assert not (fget is None and fset is None)
-    cmd = ':{}:{}'.format(prefix, name) if name else ':{}'.format(prefix)
+    cmd = '{}:{}'.format(prefix, name) if name else '{}'.format(prefix)
+    if not cmd.startswith("*") and not cmd.startswith(":"):
+        cmd = ":{}".format(cmd)
 
     def command(obj, value=None):
-        request = cmd.format(module=obj.id).upper()
+        obj_id = getattr(obj, "id", None)
+        request = cmd.format(module=obj_id).upper()
+        getter = fget
         if value is None:
-            if fget is None:
+            if getter is None:
                 raise ValueError('{} is not readable'.format(request))
-            request += '?'
+            if not request.endswith("?"):
+                request += '?'
         elif fset is None:
             raise ValueError('{} is not writable'.format(request))
         else:
             set_command = '{} {}'.format(request, fset(value))
-            if fget is None:
-                return obj.ctrl._command(set_command)
+            if getter is None:
+                request = ':SYST:ERR'
+                getter = to_error
             request = '{};{}?'.format(set_command, request)
-        return request, fget
+        return request, getter
 
     def get_set(obj, value=None):
-        request, fget = command(obj, value=value)
-        return obj.ctrl._query(request, fget)
+        request, getter = command(obj, value=value)
+        is_get = value is None
+        if is_get and cache:
+            cache_value = obj._cache.get(request)
+            if cache_value is not None:
+                return cache_value
+        result = obj._query(request, getter)
+        if is_get or cache:
+            if asyncio.iscoroutine(result):
+                result = asyncio.ensure_future(result)
+                def cb(futur):
+                    obj._cache[request] = futur
+                result.add_done_callback(cb)
+            else:
+                obj._cache[request] = result
+        return result
 
     get_set.template = cmd
     get_set.command = command
@@ -136,12 +179,12 @@ def sub_member(prefix, name="", fget=lambda x: x, fset=None):
     return get_set
 
 
-sens_member = functools.partial(sub_member, 'SENS{module}')
-sens_pres_member = functools.partial(sub_member, 'SENS{module}:PRES')
-src_member = functools.partial(sub_member, 'SOUR{module}')
-src_pres_member = functools.partial(sub_member, 'SOUR{module}:PRES')
-output_member = functools.partial(sub_member, 'OUTP{module}')
-unit_member = functools.partial(sub_member, 'UNIT{module}')
+sens_member = functools.partial(member, 'SENS{module}')
+sens_pres_member = functools.partial(member, 'SENS{module}:PRES')
+src_member = functools.partial(member, 'SOUR{module}')
+src_pres_member = functools.partial(member, 'SOUR{module}:PRES')
+output_member = functools.partial(member, 'OUTP{module}')
+unit_member = functools.partial(member, 'UNIT{module}')
 
 
 class RateMode(enum.Enum):
@@ -156,7 +199,7 @@ class RateMode(enum.Enum):
         return self.value
 
 
-class Channel:
+class Module:
 
     pressure = sens_pres_member(fget=to_float)
     pressure_range = sens_pres_member("RANG", to_name, from_name)
@@ -175,12 +218,22 @@ class Channel:
     src_pressure_rate_overshoot = src_pres_member("SLEW:OVER", to_bool, from_bool)
 
     pressure_control = output_member("STAT", to_bool, from_bool)
+    relay1 = output_member("LOG1", to_bool, from_bool)
+    relay2 = output_member("LOG2", to_bool, from_bool)
+    relay3 = output_member("LOG3", to_bool, from_bool)
 
     unit = unit_member("PRES", to_nop, from_nop)
 
-    def __init__(self, channel, ctrl):
-        self.id = channel
+    def __init__(self, module, ctrl):
+        self.id = module
         self.ctrl = ctrl
+
+    def _query(self, cmd, func=to_nop):
+        return self.ctrl._query(cmd, func=func)
+
+    @property
+    def _cache(self):
+        return self.ctrl._cache
 
     def start(self):
         return self.pressure_control(True)
@@ -189,7 +242,7 @@ class Channel:
         return self.pressure_control(False)
 
 
-def _dump_channel_commands(ch):
+def _dump_module_commands(ch):
     klass = type(ch)
     cmds = []
     for name in dir(klass):
@@ -199,15 +252,15 @@ def _dump_channel_commands(ch):
     return cmds
 
 
-def _dump_channel_command_names(ch):
+def _dump_module_command_names(ch):
     return [
         (name, member.template, member.command(ch)[0])
-        for name, member in _dump_channel_commands(ch)
+        for name, member in _dump_module_commands(ch)
     ]
 
 
-async def _dump_channel_command_values(ch):
-    cmds = _dump_channel_commands(ch)
+async def _dump_module_command_values(ch):
+    cmds = _dump_module_commands(ch)
     async with ch.ctrl as grp:
         for name, _ in cmds:
             getattr(ch, name)()
@@ -228,8 +281,10 @@ class Pace:
 
         def append(self, cmd, func):
             cmds = self.cmds[-1]
-            # maximum of 255 characters per command
-            if len(cmds) + len(cmd) > 500:
+            # I have the impression the hardware answers with a max of 255
+            # bytes. We limit the request to 128 in the hope the answer is
+            # not longer
+            if len(cmds) + len(cmd) > 128:
                 cmds = ""
                 self.cmds.append(cmds)
             cmds += ";{}".format(cmd) if cmds else cmd
@@ -251,16 +306,17 @@ class Pace:
             store = self._async_store if is_async else self._store
             return store(replies)
 
-    def __init__(self, conn, channels=(1, 2)):
+    def __init__(self, conn, modules=(1, 2)):
         self._conn = conn
         is_async = asyncio.iscoroutinefunction(conn.write_readline)
+        self._cache = {}
         self._handle_io = handle_async_io if is_async else handle_sync_io
         self._log = logging.getLogger("Pace({})".format(conn))
-        self.channels = {channel: Channel(channel, self) for channel in channels}
+        self.modules = {module: Module(module, self) for module in modules}
         self.group = None
 
     def __getitem__(self, key):
-        return self.channels[key]
+        return self.modules[key]
 
     def __enter__(self):
         self.group = self.Group(self)
@@ -296,6 +352,9 @@ class Pace:
 
         return "Pace({})\n{}".format(self._conn, data)
 
+    def __call__(self, request):
+        return self._query(request)
+
     def _ask(self, cmd):
         query = "?" in cmd
         raw_cmd = cmd.encode() + b"\n"
@@ -315,14 +374,18 @@ class Pace:
         else:
             self.group.append(cmd, func)
 
-    def _command(self, cmd):
-        return self._ask(cmd)
-
-    idn = member("*IDN")
+    #idn = member("*IDN", cache=True)
+    idn = member("*IDN", cache=True)
     hw_test = member("*TST", to_bool)
-    mac = member("INST:MAC", to_name)
+    mac = member("INST:MAC", to_name, cache=True)
     task = member("INST:TASK", to_nop)
     error = member("SYST:ERR", to_error)
-    version = member("SYST:VERS", to_name)
-    world_area = member("SYST:AREA", to_nop)
+    version = member("SYST:VERS", to_name, cache=True)
+    world_area = member("SYST:AREA", to_nop, cache=True)
 
+    # TODO: does not work in group!
+    serial_numbers = member(
+        ";".join(":INST:SN{}?".format(i) for i in range(1, 8)),
+        to_sn,
+        cache=True
+    )
