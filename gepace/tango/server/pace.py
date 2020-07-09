@@ -2,7 +2,7 @@ import tango
 from tango.server import Device, attribute, command, device_property
 
 from sockio.aio import TCP
-from gepace.pace import Pace as PaceHW, RateMode
+from gepace.pace import Pace as PaceHW, Mode, RateMode
 
 
 def create_connection(address, connection_timeout=1, timeout=1):
@@ -22,13 +22,16 @@ def create_connection(address, connection_timeout=1, timeout=1):
 
 ATTR_MAP = {
     "idn": lambda pace: pace.idn(),
+    "mode": lambda pace: pace.mode(),
     "pressure1": lambda pace: pace[1].pressure(),
     "src_pressure1": lambda pace: pace[1].src_pressure(),
     "pressure1_setpoint": lambda pace: pace[1].src_pressure_setpoint(),
     "pressure1_overshoot": lambda pace: pace[1].src_pressure_rate_overshoot(),
     "pressure1_rate_mode": lambda pace: pace[1].src_pressure_rate_mode(),
     "pressure1_rate": lambda pace: pace[1].src_pressure_rate(),
+    "pressure1_control": lambda pace: pace[1].pressure_control()
 }
+
 
 class Pace(Device):
 
@@ -59,21 +62,21 @@ class Pace(Device):
     def idn(self):
         return self.last_values["idn"]
 
-    @attribute(dtype=float)
+    @attribute(dtype=float, unit="mbar")
     def pressure1(self):
         return self.last_values["pressure1"]
 
-    @attribute(dtype=float)
+    @attribute(dtype=float, unit="mbar")
     def src_pressure1(self):
         return self.last_values["src_pressure1"]
 
-    @attribute(dtype=float)
+    @attribute(dtype=float, unit="mbar")
     def pressure1_setpoint(self):
         return self.last_values["pressure1_setpoint"]
 
     @pressure1_setpoint.write
     async def pressure1_setpoint(self, value):
-        await self.ctrl[1].src_pressure_setpoint(value)
+        await self.pace[1].src_pressure_setpoint(value)
 
     @attribute(dtype=bool)
     def pressure1_overshoot(self):
@@ -88,13 +91,32 @@ class Pace(Device):
         value = RateMode[value.capitalize()]
         await self.pace[1].src_pressure_rate_mode(value)
 
-    @attribute(dtype=float)
+    @attribute(dtype=float, unit="mbar/s")
     def pressure1_rate(self):
         return self.last_values["pressure1_rate"]
 
     @pressure1_rate.write
     async def pressure1_rate(self, value):
         await self.pace[1].src_pressure_rate(value)
+
+    @attribute(dtype=bool)
+    def pressure1_control(self):
+        return self.last_values["pressure1_control"]
+
+    @pressure1_control.write
+    async def pressure1_control(self, value):
+        await self.pace[1].pressure_control(value)
+
+    @attribute(dtype=[str], max_dim_x=2)
+    def mode(self):
+        mode, setpoint = self.last_values["mode"]
+        return [mode.name, str(setpoint)]
+
+    @mode.write
+    async def mode(self, value):
+        mode = Mode[value[0].capitalize()]
+        setpoint = float(value[1])
+        await self.pace.mode([mode, value])
 
 
 if __name__ == "__main__":

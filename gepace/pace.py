@@ -199,6 +199,16 @@ class RateMode(enum.Enum):
         return self.value
 
 
+class Mode(enum.Enum):
+    Measurement = "MEAS"
+    Control = "CONT"
+
+    @classmethod
+    def decode(cls, text):
+        mode, setpoint = to_nop(text).split(",", 1)
+        return cls(mode), float(setpoint)
+
+
 class Module:
 
     pressure = sens_pres_member(fget=to_float)
@@ -374,18 +384,18 @@ class Pace:
         else:
             self.group.append(cmd, func)
 
-    #idn = member("*IDN", cache=True)
     idn = member("*IDN", cache=True)
-    hw_test = member("*TST", to_bool)
-    mac = member("INST:MAC", to_name, cache=True)
-    task = member("INST:TASK", to_nop)
-    error = member("SYST:ERR", to_error)
-    version = member("SYST:VERS", to_name, cache=True)
-    world_area = member("SYST:AREA", to_nop, cache=True)
+    hw_test = member("*TST", fget=to_bool)
+    mac = member("INST:MAC", fget=to_name, cache=True)
+    task = member("INST:TASK", fget=to_nop)
+    error = member("SYST:ERR", fget=to_error)
+    version = member("SYST:VERS", fget=to_name, cache=True)
+    world_area = member("SYST:AREA", fget=to_nop, cache=True)
+    mode = member("SYST:SET", fget=Mode.decode, fset=lambda v: '{},{}'.format(*v))
 
     # TODO: does not work in group!
     serial_numbers = member(
         ";".join(":INST:SN{}?".format(i) for i in range(1, 8)),
-        to_sn,
+        fget=to_sn,
         cache=True
     )
