@@ -2,7 +2,7 @@ import tango
 from tango.server import Device, attribute, command, device_property
 
 from sockio.aio import TCP
-from gepace.gepace import Pace, RateMode
+from gepace.pace import Pace as PaceHW, RateMode
 
 
 def create_connection(address, connection_timeout=1, timeout=1):
@@ -30,7 +30,7 @@ ATTR_MAP = {
     "pressure1_rate": lambda pace: pace[1].src_pressure_rate(),
 }
 
-class GEPace(Device):
+class Pace(Device):
 
     green_mode = tango.GreenMode.Asyncio
 
@@ -39,7 +39,7 @@ class GEPace(Device):
     async def init_device(self):
         await super().init_device()
         conn = create_connection(self.address)
-        self.pace = Pace(conn)
+        self.pace = PaceHW(conn)
         self.last_values = {}
 
     async def read_attr_hardware(self, indexes):

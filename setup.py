@@ -18,14 +18,14 @@ setup(
     description="GE Pace library",
     long_description=description,
     long_description_content_type="text/markdown",
-    extras_require={
-        "tango-ds": ["PyTango"],
-        "simulator": ["sinstruments>=1", "scpi-protocol>=0.2"]
-    },
     entry_points={
         "console_scripts": [
-            "Pace = cryocon.tango:main [tango-ds]",
+            "GEPace = gepace.tango.server:main [tango]",
         ]
+    },
+    extras_require={
+        "tango": ["pytango"],
+        "simulator": ["sinstruments>=1", "scpi-protocol>=0.2"]
     },
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
@@ -43,5 +43,5 @@ setup(
     keywords="GE, pace, pace 5000, pace 6000, library, tango, simulator",
     packages=find_packages(),
     python_requires=">=3.5",
-    url="https://github.com/ALBA-Synchrotron/gepace"
+    url="https://github.com/tiagocoutinho/gepace"
 )
