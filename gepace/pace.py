@@ -292,7 +292,7 @@ class Pace:
             self.funcs.append(func)
 
         def _store(self, replies):
-            replies = "".join(replies)
+            replies = ";".join(replies)
             replies = (msg.strip() for msg in replies.split(";"))
             replies = [func(text) for func, text in zip(self.funcs, replies)]
             self.replies = replies
