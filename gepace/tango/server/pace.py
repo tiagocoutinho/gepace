@@ -82,6 +82,10 @@ class Pace(Device):
     def pressure1_overshoot(self):
         return self.last_values["pressure1_overshoot"]
 
+    @pressure1_overshoot.write
+    async def pressure1_overshoot(self, value):
+        await self.pace[1].src_pressure_rate_overshoot(value)
+
     @attribute(dtype=str)
     def pressure1_rate_mode(self):
         return self.last_values["pressure1_rate_mode"].name
