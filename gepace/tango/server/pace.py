@@ -29,7 +29,8 @@ ATTR_MAP = {
     "pressure1_overshoot": lambda pace: pace[1].src_pressure_rate_overshoot(),
     "pressure1_rate_mode": lambda pace: pace[1].src_pressure_rate_mode(),
     "pressure1_rate": lambda pace: pace[1].src_pressure_rate(),
-    "pressure1_control": lambda pace: pace[1].pressure_control()
+    "pressure1_control": lambda pace: pace[1].pressure_control(),
+    "error": lambda pace: pace.error()
 }
 
 
@@ -41,8 +42,8 @@ class Pace(Device):
 
     async def init_device(self):
         await super().init_device()
-        conn = create_connection(self.address)
-        self.pace = PaceHW(conn)
+        self.conn = create_connection(self.address)
+        self.pace = PaceHW(self.conn)
         self.last_values = {}
 
     async def read_attr_hardware(self, indexes):
@@ -52,11 +53,17 @@ class Pace(Device):
             for index in indexes
         ]
         funcs = [ATTR_MAP[name] for name in names]
-        async with self.pace as group:
-            [func(self.pace) for func in funcs]
-        values = group.replies
+        try:
+            async with self.pace as group:
+                [func(self.pace) for func in funcs]
+            values = group.replies
+        except OSError as error:
+            self.set_state(tango.DevState.FAULT)
+            self.set_status("Communication error: {error!r}".format(error))
+            raise
+        self.set_state(tango.DevState.ON)
+        self.set_status("OK")
         self.last_values = dict(zip(names, values))
-#        self._update_state_status(self.last_values["control"])
 
     @attribute(dtype=str)
     def idn(self):
@@ -120,7 +127,20 @@ class Pace(Device):
     async def mode(self, value):
         mode = Mode[value[0].capitalize()]
         setpoint = float(value[1])
-        await self.pace.mode([mode, value])
+        await self.pace.mode([mode, setpoint])
+
+    @attribute(dtype=str)
+    def error(self):
+        code, error = self.last_values["error"]
+        return "{}: {}".format(code, error) if code else ""
+
+    @command(dtype_in=str)
+    async def write(self, data):
+        await self.conn.write(data.encode())
+
+    @command(dtype_in=str, dtype_out=str)
+    async def write_readline(self, data):
+        return (await self.conn.write_readline(data.encode())).decode()
 
 
 if __name__ == "__main__":
