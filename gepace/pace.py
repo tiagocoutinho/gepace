@@ -208,6 +208,11 @@ class Mode(enum.Enum):
         mode, setpoint = to_nop(text).split(",", 1)
         return cls(mode), float(setpoint)
 
+    @staticmethod
+    def encode(args):
+        mode, setpoint = args
+        return '{},{}'.format(mode.value, setpoint)
+
 
 class Module:
 
@@ -391,7 +396,7 @@ class Pace:
     error = member("SYST:ERR", fget=to_error)
     version = member("SYST:VERS", fget=to_name, cache=True)
     world_area = member("SYST:AREA", fget=to_nop, cache=True)
-    mode = member("SYST:SET", fget=Mode.decode, fset=lambda v: '{},{}'.format(*v))
+    mode = member("SYST:SET", fget=Mode.decode, fset=Mode.encode)
 
     # TODO: does not work in group!
     serial_numbers = member(
