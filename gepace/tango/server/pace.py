@@ -1,3 +1,5 @@
+import asyncio
+
 import tango
 from tango.server import Device, attribute, command, device_property
 
@@ -42,6 +44,7 @@ class Pace(Device):
 
     async def init_device(self):
         await super().init_device()
+        self.lock = asyncio.Lock()
         self.conn = create_connection(self.address)
         self.pace = PaceHW(self.conn)
         self.last_values = {}
@@ -54,12 +57,13 @@ class Pace(Device):
         ]
         funcs = [ATTR_MAP[name] for name in names]
         try:
-            async with self.pace as group:
-                [func(self.pace) for func in funcs]
-            values = group.replies
+            async with self.lock:
+                async with self.pace as group:
+                    [func(self.pace) for func in funcs]
+                values = group.replies
         except OSError as error:
             self.set_state(tango.DevState.FAULT)
-            self.set_status("Communication error: {error!r}".format(error))
+            self.set_status("Communication error: {!r}".format(error))
             raise
         self.set_state(tango.DevState.ON)
         self.set_status("OK")
