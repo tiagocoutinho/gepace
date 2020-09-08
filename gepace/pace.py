@@ -205,7 +205,7 @@ class Mode(enum.Enum):
 
     @classmethod
     def decode(cls, text):
-        mode, setpoint = to_nop(text).split(",", 1)
+        mode, setpoint = text.split(",", 1)
         return cls(mode), float(setpoint)
 
     @staticmethod
