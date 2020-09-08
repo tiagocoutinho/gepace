@@ -32,7 +32,27 @@ import scpi
 DEFAULT = {
     '*idn': '*IDN GE Druck,PACE5000,10388796,DK0367  v02.02.14',
     'sys_error': ':SYST:ERR 0, No error',
+    'src_slew': "2.0",
+    'src_slew_mode': "LIN",
+    'src_slew_over_state': '1',
+    'src_amp': '0.4',
+    'sens1_pressure': '34.567',
+    'syst_set': 'CONT, 100.00',
+    'out_stat': '0',
 }
+
+
+def ConfigCmd(cfg, name, get=None, set=None, read_only=False):
+    if get is None:
+        def get(req):
+            return cfg[name]
+    if read_only:
+        set = None
+    else:
+        if set is None:
+            def set(req):
+                cfg[name] = req.args[0]
+    return scpi.Cmd(get=get, set=set)
 
 
 class Pace(BaseDevice):
@@ -49,6 +69,13 @@ class Pace(BaseDevice):
             'SYSTem:ERRor': scpi.Cmd(get=self.sys_error),
             'SYSTem:DATe': scpi.Cmd(get=self.sys_date, set=self.sys_date),
             'SYSTem:TIMe': scpi.Cmd(get=self.sys_time, set=self.sys_time),
+            'SYSTem:SET': ConfigCmd(self._config, 'syst_set', read_only=True),
+            'SOUR1[:PRESsure]:SLEW': ConfigCmd(self._config, 'src_slew'),
+            'SOUR1[:PRESsure]:SLEW:MODE': ConfigCmd(self._config, 'src_slew_mode'),
+            'SOUR1[:PRESsure]:SLEW:OVERshoot[:STATe]': ConfigCmd(self._config, 'src_slew_over_state'),
+            'SOUR1[:PRESsure][:LEVel][:IMMediate][:AMPLitude]': ConfigCmd(self._config, 'src_amp'),
+            'SENS1[:PRESsure]': ConfigCmd(self._config, 'sens1_pressure'),
+            'OUTP1:STATe': ConfigCmd(self._config, 'out_stat'),
         })
 
     def handle_message(self, line):
@@ -90,3 +117,7 @@ class Pace(BaseDevice):
         if request.query:
             return time.strftime('"%H:%M:%S"')
         # cannot change machine time!
+
+    def slew_over_state(self, request):
+        if request.query:
+            return "1"
