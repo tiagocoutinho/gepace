@@ -2,24 +2,9 @@ import asyncio
 
 import tango
 from tango.server import Device, attribute, command, device_property
+from connio import connection_for_url
 
-from sockio.aio import TCP
 from gepace.pace import Pace as PaceHW, Mode, RateMode
-
-
-def create_connection(address, connection_timeout=1, timeout=1):
-    if address.startswith("tcp://"):
-        address = address[6:]
-        pars = address.split(":")
-        host = pars[0]
-        port = int(pars[1]) if len(pars) > 1 else 5025
-        conn = TCP(host, port,
-                   connection_timeout=connection_timeout,
-                   timeout=timeout)
-        return conn
-    else:
-        raise NotImplementedError(
-            "address {!r} not supported".format(address))
 
 
 ATTR_MAP = {
@@ -40,13 +25,20 @@ class Pace(Device):
 
     green_mode = tango.GreenMode.Asyncio
 
-    address = device_property(dtype=str)
+    url = device_property(dtype=str)
+    baudrate = device_property(dtype=int, default_value=9600)
+    bytesize = device_property(dtype=int, default_value=8)
+    parity = device_property(dtype=str, default_value='N')
 
     async def init_device(self):
         await super().init_device()
         self.lock = asyncio.Lock()
-        self.conn = create_connection(self.address)
-        self.pace = PaceHW(self.conn)
+        kwargs = dict(concurrency="async")
+        if self.url.startswith("serial") or self.url.startswith("rfc2217"):
+            kwargs.update(dict(baudrate=self.baudrate, bytesize=self.bytesize,
+                               parity=self.parity))
+        self.connection = connection_for_url(self.url, **kwargs)
+        self.pace = PaceHW(self.connection)
         self.last_values = {}
 
     async def read_attr_hardware(self, indexes):
@@ -140,11 +132,11 @@ class Pace(Device):
 
     @command(dtype_in=str)
     async def write(self, data):
-        await self.conn.write(data.encode())
+        await self.connection.write(data.encode())
 
     @command(dtype_in=str, dtype_out=str)
     async def write_readline(self, data):
-        return (await self.conn.write_readline(data.encode())).decode()
+        return (await self.connection.write_readline(data.encode())).decode()
 
 
 if __name__ == "__main__":
