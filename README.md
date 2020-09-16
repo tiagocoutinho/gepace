@@ -1,6 +1,6 @@
 # GE Pace library
 
-![Pace 5000](docs/pace5000.png)
+<img align="right" alt="Pace 5000" width="400" src="docs/pace5000.png" />
 
 This library is used to control basic features of a GE Pressure Automated
 Calibration Equipment (Pace) models 1000, 5000 and 6000.
