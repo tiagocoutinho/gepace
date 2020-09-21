@@ -2,6 +2,7 @@ import enum
 import asyncio
 import logging
 import functools
+import threading
 
 NACK = "NACK"
 
@@ -68,16 +69,20 @@ def handle_reply(reply):
     return reply.decode().strip()
 
 
-async def handle_async_io(func, request, log):
+async def handle_async_io(func, lock, request, log):
     log.debug("REQ: %r", request)
-    reply = handle_reply(await func(request))
+    async with lock:
+        reply = await func(request)
+    reply = handle_reply(reply)
     log.debug("REP: %r", reply)
     return reply
 
 
-def handle_sync_io(func, request, log):
+def handle_sync_io(func, lock, request, log):
     log.debug("REQ: %r", request)
-    reply = handle_reply(func(request))
+    with lock:
+        reply = func(request)
+    reply = handle_reply(reply)
     log.debug("REP: %r", reply)
     return reply
 
@@ -324,6 +329,7 @@ class Pace:
     def __init__(self, conn, modules=(1, 2)):
         self._conn = conn
         is_async = asyncio.iscoroutinefunction(conn.write_readline)
+        self._lock = asyncio.Lock() if is_async else threading.Lock()
         self._cache = {}
         self._handle_io = handle_async_io if is_async else handle_sync_io
         self._log = logging.getLogger("Pace({})".format(conn))
@@ -377,7 +383,7 @@ class Pace:
         query = "?" in cmd
         raw_cmd = cmd.encode() + b"\n"
         io = self._conn.write_readline if query else self._conn.write
-        return self._handle_io(io, raw_cmd, self._log)
+        return self._handle_io(io, self._lock, raw_cmd, self._log)
 
     def _query(self, cmd, func=to_nop):
         if self.group is None:

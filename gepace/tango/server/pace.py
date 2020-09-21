@@ -69,10 +69,9 @@ class Pace(Device):
             for index in indexes
         ]
         funcs = [ATTR_MAP[name] for name in names]
-        async with self.lock:
-            async with self.pace as group:
-                [func(self.pace) for func in funcs]
-            values = group.replies
+        async with self.pace as group:
+            [func(self.pace) for func in funcs]
+        values = group.replies
         self.last_values = dict(zip(names, values))
 
     async def dev_state(self):
