@@ -2,9 +2,24 @@ import asyncio
 
 import tango
 from tango.server import Device, attribute, command, device_property
-from connio import connection_for_url
 
+from sockio.aio import TCP
 from gepace.pace import Pace as PaceHW, Mode, RateMode
+
+
+def create_connection(address, connection_timeout=1, timeout=1):
+    if address.startswith("tcp://"):
+        address = address[6:]
+        pars = address.split(":")
+        host = pars[0]
+        port = int(pars[1]) if len(pars) > 1 else 5025
+        conn = TCP(host, port,
+                   connection_timeout=connection_timeout,
+                   timeout=timeout)
+        return conn
+    else:
+        raise NotImplementedError(
+            "address {!r} not supported".format(address))
 
 
 ATTR_MAP = {
@@ -41,6 +56,10 @@ class Pace(Device):
         self.pace = PaceHW(self.connection)
         self.last_values = {}
 
+    async def delete_device(self):
+        await super().delete_device()
+        await self.pace.close()
+
     async def read_attr_hardware(self, indexes):
         multi_attr = self.get_device_attr()
         names = [
@@ -48,18 +67,32 @@ class Pace(Device):
             for index in indexes
         ]
         funcs = [ATTR_MAP[name] for name in names]
-        try:
-            async with self.lock:
-                async with self.pace as group:
-                    [func(self.pace) for func in funcs]
-                values = group.replies
-        except OSError as error:
-            self.set_state(tango.DevState.FAULT)
-            self.set_status("Communication error: {!r}".format(error))
-            raise
-        self.set_state(tango.DevState.ON)
-        self.set_status("OK")
+        async with self.lock:
+            async with self.pace as group:
+                [func(self.pace) for func in funcs]
+            values = group.replies
         self.last_values = dict(zip(names, values))
+
+    async def dev_state(self):
+        try:
+            control = await self.pace[1].pressure_control()
+        except Exception:
+            state = tango.DevState.FAULT
+        else:
+            state = tango.DevState.ON if control else tango.DevState.OFF
+        self.set_state(state)
+        return state
+
+    async def dev_status(self):
+        try:
+            control = await self.pace[1].pressure_control()
+        except Exception:
+            self.__status = "Disconnected: {!r}\n".format(error)
+        else:
+            state = "Control (ON)" if control else "Measurement (OFF)"
+            self.__status = "Connected; In {}".format(state)
+        self.set_status(self.__status)
+        return self.__status
 
     @attribute(dtype=str)
     def idn(self):

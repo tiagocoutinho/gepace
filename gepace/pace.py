@@ -370,6 +370,9 @@ class Pace:
     def __call__(self, request):
         return self._query(request)
 
+    def close(self):
+        return self._conn.close()
+
     def _ask(self, cmd):
         query = "?" in cmd
         raw_cmd = cmd.encode() + b"\n"
@@ -396,7 +399,7 @@ class Pace:
     error = member("SYST:ERR", fget=to_error)
     version = member("SYST:VERS", fget=to_name, cache=True)
     world_area = member("SYST:AREA", fget=to_nop, cache=True)
-    mode = member("SYST:SET", fget=Mode.decode, fset=Mode.encode)
+    startup_mode = member("SYST:SET", fget=Mode.decode, fset=Mode.encode)
 
     # TODO: does not work in group!
     serial_numbers = member(
