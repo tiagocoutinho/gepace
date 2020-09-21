@@ -1,9 +1,10 @@
 import asyncio
+import urllib.parse
 
 import tango
 from tango.server import Device, attribute, command, device_property
 
-from sockio.aio import TCP
+from connio import connection_for_url
 from gepace.pace import Pace as PaceHW, Mode, RateMode
 
 
@@ -51,9 +52,13 @@ class Pace(Device):
         await super().init_device()
         self.lock = asyncio.Lock()
         kwargs = dict(concurrency="async")
-        if self.url.startswith("serial") or self.url.startswith("rfc2217"):
+        if self.url.startswith("serial:") or self.url.startswith("rfc2217:"):
             kwargs.update(dict(baudrate=self.baudrate, bytesize=self.bytesize,
                                parity=self.parity))
+        elif self.url.startswith("tcp:"):
+            addr = urllib.parse.urlparse(self.url)
+            if addr.port is None:
+                self.url += ":5025"
         self.connection = connection_for_url(self.url, **kwargs)
         self.pace = PaceHW(self.connection)
         self.last_values = {}
