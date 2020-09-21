@@ -24,7 +24,7 @@ def create_connection(address, connection_timeout=1, timeout=1):
 
 ATTR_MAP = {
     "idn": lambda pace: pace.idn(),
-    "mode": lambda pace: pace.mode(),
+    "startup_mode": lambda pace: pace.startup_mode(),
     "pressure1": lambda pace: pace[1].pressure(),
     "src_pressure1": lambda pace: pace[1].src_pressure(),
     "pressure1_setpoint": lambda pace: pace[1].src_pressure_setpoint(),
@@ -44,6 +44,8 @@ class Pace(Device):
     baudrate = device_property(dtype=int, default_value=9600)
     bytesize = device_property(dtype=int, default_value=8)
     parity = device_property(dtype=str, default_value='N')
+
+    sync_startup_set_point = device_property(dtype=bool, default_value=True)
 
     async def init_device(self):
         await super().init_device()
@@ -113,6 +115,10 @@ class Pace(Device):
     @pressure1_setpoint.write
     async def pressure1_setpoint(self, value):
         await self.pace[1].src_pressure_setpoint(value)
+        if self.sync_startup_set_point:
+            mode, set_point = await self.pace.startup_mode()
+            if set_point != value:
+                await self.pace.startup_mode([mode, value])
 
     @attribute(dtype=bool)
     def pressure1_overshoot(self):
@@ -148,15 +154,15 @@ class Pace(Device):
         await self.pace[1].pressure_control(value)
 
     @attribute(dtype=[str], max_dim_x=2)
-    def mode(self):
-        mode, setpoint = self.last_values["mode"]
+    def startup_mode(self):
+        mode, setpoint = self.last_values["startup_mode"]
         return [mode.name, str(setpoint)]
 
-    @mode.write
-    async def mode(self, value):
+    @startup_mode.write
+    async def startup_mode(self, value):
         mode = Mode[value[0].capitalize()]
         setpoint = float(value[1])
-        await self.pace.mode([mode, setpoint])
+        await self.pace.startup_mode([mode, setpoint])
 
     @attribute(dtype=str)
     def error(self):
@@ -165,11 +171,13 @@ class Pace(Device):
 
     @command(dtype_in=str)
     async def write(self, data):
-        await self.connection.write(data.encode())
+        async with self.lock:
+            await self.conn.write(data.encode())
 
     @command(dtype_in=str, dtype_out=str)
     async def write_readline(self, data):
-        return (await self.connection.write_readline(data.encode())).decode()
+        async with self.lock:
+            return (await self.conn.write_readline(data.encode())).decode()
 
 
 if __name__ == "__main__":
