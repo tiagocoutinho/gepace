@@ -224,7 +224,7 @@ class Module:
     pressure = sens_pres_member(fget=to_float)
     pressure_range = sens_pres_member("RANG", to_name, from_name)
     pressure_in_limits = sens_pres_member("INL", to_float_bool)
-    barometric_pressure = sens_pres_member("BAR", to_float)  # mbar
+    barometric_pressure = sens_pres_member("BAR", to_float)
     pressure_resolution = sens_pres_member("RES", to_int, from_nop)
 
     src_pressure_pos_ve = src_pres_member("COMP1", to_float)
