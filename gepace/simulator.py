@@ -23,6 +23,7 @@ A simple *nc* client can be used to connect to the instrument:
 """
 
 import time
+import random
 
 from sinstruments.simulator import BaseDevice
 
@@ -32,6 +33,7 @@ import scpi
 DEFAULT = {
     '*idn': '*IDN GE Druck,PACE5000,10388796,DK0367  v02.02.14',
     'sys_error': ':SYST:ERR 0, No error',
+    'src_pressure': 12.464,
     'src_slew': "2.0",
     'src_slew_mode': "LIN",
     'src_slew_over_state': '1',
@@ -76,6 +78,7 @@ class Pace(BaseDevice):
             'SYSTem:DATe': scpi.Cmd(get=self.sys_date, set=self.sys_date),
             'SYSTem:TIMe': scpi.Cmd(get=self.sys_time, set=self.sys_time),
             'SYSTem:SET': ConfigCmd(self._config, 'syst_set', read_only=False),
+            'SOUR1[:PRESsure]:COMP[1]': FloatRandCmd(self._config, 'src_pressure'),
             'SOUR1[:PRESsure]:SLEW': ConfigCmd(self._config, 'src_slew'),
             'SOUR1[:PRESsure]:SLEW:MODE': ConfigCmd(self._config, 'src_slew_mode'),
             'SOUR1[:PRESsure]:SLEW:OVERshoot[:STATe]': ConfigCmd(self._config, 'src_slew_over_state'),
