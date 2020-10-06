@@ -47,6 +47,8 @@ class Pace(Device):
     bytesize = device_property(dtype=int, default_value=8)
     parity = device_property(dtype=str, default_value='N')
 
+    # If true, when setting a new setpoint, will also update the startup setpoint.
+    # This is useful is the device needs to be restarted in the same conditions it was stopped
     sync_startup_set_point = device_property(dtype=bool, default_value=True)
 
     async def init_device(self):
@@ -101,19 +103,21 @@ class Pace(Device):
         self.set_status(self.__status)
         return self.__status
 
-    @attribute(dtype=str)
+    @attribute(dtype=str, description="Identification")
     def idn(self):
         return self.last_values["idn"]
 
-    @attribute(dtype=float, unit="bar")
+    @attribute(dtype=float, unit="bar", label="Pressure")
     def pressure1(self):
         return self.last_values["pressure1"]
 
-    @attribute(dtype=float, unit="bar")
+    @attribute(dtype=float, unit="bar", label="Source pressure",
+               description="Source pressure (+ve)")
     def src_pressure1(self):
         return self.last_values["src_pressure1"]
 
-    @attribute(dtype=float, unit="bar")
+    @attribute(dtype=float, unit="bar", label="Pressure setpoint",
+               description="Pressure setpoint")
     def pressure1_setpoint(self):
         return self.last_values["pressure1_setpoint"]
 
@@ -125,7 +129,8 @@ class Pace(Device):
             if set_point != value:
                 await self.pace.startup_mode([mode, value])
 
-    @attribute(dtype=bool)
+    @attribute(dtype=bool, label="Overshoot",
+               description="pressure overshoot active?")
     def pressure1_overshoot(self):
         return self.last_values["pressure1_overshoot"]
 
@@ -133,7 +138,8 @@ class Pace(Device):
     async def pressure1_overshoot(self, value):
         await self.pace[1].src_pressure_rate_overshoot(value)
 
-    @attribute(dtype=str)
+    @attribute(dtype=str, label="Rate mode",
+               description="Rate mode (linear or maximum) case insensitive")
     def pressure1_rate_mode(self):
         return self.last_values["pressure1_rate_mode"].name
 
@@ -142,7 +148,8 @@ class Pace(Device):
         value = RateMode[value.capitalize()]
         await self.pace[1].src_pressure_rate_mode(value)
 
-    @attribute(dtype=float, unit="bar/s")
+    @attribute(dtype=float, unit="bar/s", label="Rate",
+               description="Pressure rate")
     def pressure1_rate(self):
         return self.last_values["pressure1_rate"]
 
@@ -150,7 +157,8 @@ class Pace(Device):
     async def pressure1_rate(self, value):
         await self.pace[1].src_pressure_rate(value)
 
-    @attribute(dtype=bool)
+    @attribute(dtype=bool, label="Control",
+               description="Control active?")
     def pressure1_control(self):
         return self.last_values["pressure1_control"]
 
@@ -158,7 +166,8 @@ class Pace(Device):
     async def pressure1_control(self, value):
         await self.pace[1].pressure_control(value)
 
-    @attribute(dtype=[str], max_dim_x=2)
+    @attribute(dtype=[str], max_dim_x=2, label="Startup mode",
+               description="Mode and pressure applied at startup")
     def startup_mode(self):
         mode, setpoint = self.last_values["startup_mode"]
         return [mode.name, str(setpoint)]
@@ -174,7 +183,7 @@ class Pace(Device):
         code, error = self.last_values["error"]
         return "{}: {}".format(code, error) if code else ""
 
-    @attribute(dtype=str)
+    @attribute(dtype=str, label="Unit")
     def unit1(self):
         return self.last_values["unit1"]
 
