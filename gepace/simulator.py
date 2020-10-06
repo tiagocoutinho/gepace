@@ -36,7 +36,7 @@ DEFAULT = {
     'src_slew_mode': "LIN",
     'src_slew_over_state': '1',
     'src_amp': '0.4',
-    'sens1_pressure': '34.567',
+    'sens1_pressure': 34.567,
     'syst_set': 'CONT, 100.00',
     'out_stat': '0',
 }
@@ -53,6 +53,12 @@ def ConfigCmd(cfg, name, get=None, set=None, read_only=False):
             def set(req):
                 cfg[name] = req.args[0]
     return scpi.Cmd(get=get, set=set)
+
+
+def FloatRandCmd(cfg, name):
+    def get(req):
+        return str(cfg[name] + random.random())
+    return scpi.Cmd(get=get)
 
 
 class Pace(BaseDevice):
@@ -74,7 +80,7 @@ class Pace(BaseDevice):
             'SOUR1[:PRESsure]:SLEW:MODE': ConfigCmd(self._config, 'src_slew_mode'),
             'SOUR1[:PRESsure]:SLEW:OVERshoot[:STATe]': ConfigCmd(self._config, 'src_slew_over_state'),
             'SOUR1[:PRESsure][:LEVel][:IMMediate][:AMPLitude]': ConfigCmd(self._config, 'src_amp'),
-            'SENS1[:PRESsure]': ConfigCmd(self._config, 'sens1_pressure'),
+            'SENS1[:PRESsure]': FloatRandCmd(self._config, 'sens1_pressure'),
             'OUTP1:STATe': ConfigCmd(self._config, 'out_stat'),
         })
 
