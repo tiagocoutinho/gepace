@@ -53,7 +53,7 @@ def ConfigCmd(cfg, name, get=None, set=None, read_only=False):
     else:
         if set is None:
             def set(req):
-                cfg[name] = req.args[0]
+                cfg[name] = req.args
     return scpi.Cmd(get=get, set=set)
 
 
@@ -107,7 +107,7 @@ class Pace(BaseDevice):
             getter = cmd.get('get')
             if getter is None:
                 return 'NACK'
-            return cmd['get'](request)
+            return "{} {}".format(request.name, cmd['get'](request))
         else:
             setter = cmd.get('set')
             if setter is None:
