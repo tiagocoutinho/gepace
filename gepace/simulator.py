@@ -69,7 +69,7 @@ class Pace(BaseDevice):
             'SYSTem:ERRor': scpi.Cmd(get=self.sys_error),
             'SYSTem:DATe': scpi.Cmd(get=self.sys_date, set=self.sys_date),
             'SYSTem:TIMe': scpi.Cmd(get=self.sys_time, set=self.sys_time),
-            'SYSTem:SET': ConfigCmd(self._config, 'syst_set', read_only=True),
+            'SYSTem:SET': ConfigCmd(self._config, 'syst_set', read_only=False),
             'SOUR1[:PRESsure]:SLEW': ConfigCmd(self._config, 'src_slew'),
             'SOUR1[:PRESsure]:SLEW:MODE': ConfigCmd(self._config, 'src_slew_mode'),
             'SOUR1[:PRESsure]:SLEW:OVERshoot[:STATe]': ConfigCmd(self._config, 'src_slew_over_state'),
