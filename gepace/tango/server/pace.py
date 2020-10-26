@@ -62,6 +62,8 @@ class Pace(Device):
             addr = urllib.parse.urlparse(self.url)
             if addr.port is None:
                 self.url += ":5025"
+            kwargs["timeout"] = 1
+            kwargs["connection_timeout"] = 1
         self.connection = connection_for_url(self.url, **kwargs)
         self.pace = PaceHW(self.connection)
         self.last_values = {}
@@ -94,8 +96,14 @@ class Pace(Device):
 
     async def dev_status(self):
         try:
+            return await self._dev_status()
+        except Exception as error:
+            return repr(error)
+
+    async def _dev_status(self):
+        try:
             control = await self.pace[1].pressure_control()
-        except Exception:
+        except Exception as error:
             self.__status = "Disconnected: {!r}\n".format(error)
         else:
             state = "Control (ON)" if control else "Measurement (OFF)"
