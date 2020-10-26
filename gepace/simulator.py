@@ -31,8 +31,8 @@ import scpi
 
 
 DEFAULT = {
-    '*idn': '*IDN GE Druck,PACE5000,10388796,DK0367  v02.02.14',
-    'sys_error': ':SYST:ERR 0, No error',
+    '*idn': 'GE Druck,PACE5000,10388796,DK0367  v02.02.14',
+    'sys_error': '0, No error',
     'src_pressure': 12.464,
     'src_slew': "2.0",
     'src_slew_mode': "LIN",
@@ -75,8 +75,8 @@ class Pace(BaseDevice):
         self._cmds = scpi.Commands({
             '*IDN': scpi.Cmd(get=lambda req: self._config['*idn']),
             'SYSTem:ERRor': scpi.Cmd(get=self.sys_error),
-            'SYSTem:DATe': scpi.Cmd(get=self.sys_date, set=self.sys_date),
-            'SYSTem:TIMe': scpi.Cmd(get=self.sys_time, set=self.sys_time),
+            'SYSTem:DATE': scpi.Cmd(get=self.sys_date, set=self.sys_date),
+            'SYSTem:TIME': scpi.Cmd(get=self.sys_time, set=self.sys_time),
             'SYSTem:SET': ConfigCmd(self._config, 'syst_set', read_only=False),
             'SOUR1[:PRESsure]:COMP[1]': FloatRandCmd(self._config, 'src_pressure'),
             'SOUR1[:PRESsure]:SLEW': ConfigCmd(self._config, 'src_slew'),
@@ -107,7 +107,7 @@ class Pace(BaseDevice):
             getter = cmd.get('get')
             if getter is None:
                 return 'NACK'
-            return "{} {}".format(request.name, cmd['get'](request))
+            return "{} {}".format(request.name.upper(), cmd['get'](request))
         else:
             setter = cmd.get('set')
             if setter is None:
@@ -119,12 +119,12 @@ class Pace(BaseDevice):
 
     def sys_date(self, request):
         if request.query:
-            return time.strftime('"%m/%d/%Y"')
+            return time.strftime('%y, %m, %d')
         # cannot change machine date!
 
     def sys_time(self, request):
         if request.query:
-            return time.strftime('"%H:%M:%S"')
+            return time.strftime('%H, %M, %S')
         # cannot change machine time!
 
     def slew_over_state(self, request):
