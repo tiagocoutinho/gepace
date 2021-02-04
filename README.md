@@ -103,7 +103,7 @@ A Pace simulator is provided.
 
 Before using it, make sure everything is installed with:
 
-`$ pip install pace[simulator]`
+`$ pip install gepace[simulator]`
 
 The [sinstruments](https://pypi.org/project/sinstruments/) engine is used.
 
@@ -150,10 +150,10 @@ or using the library:
 ```python
 $ python
 >>> from sockio.sio import TCP   # use synchronous socket in the CLI!
->>> from cryocon import CryoCon
->>> cryo = CryoCon(TCP('localhost', 5000))
->>> print(cryo.idn())
-Cryo-con,24C,204683,1.01A
+>>> from gepace import Pace
+>>> pace = Pace(TCP('localhost', 5000))
+>>> print(pace.idn())
+GE,Pace5000,204683,1.01A
 ```
 
 ### Tango server
@@ -162,12 +162,12 @@ A [tango](https://tango-controls.org/) device server is also provided.
 
 Make sure everything is installed with:
 
-`$ pip install cryocon[tango-ds]`
+`$ pip install gepace[tango]`
 
-Register a cryocon tango server in the tango database:
+Register a gepace tango server in the tango database:
 ```
-$ tangoctl server add -s CryoConTempController/test -d CryoConTempController test/cryocon/1
-$ tangoctl device property write -d test/cryocon/1 -p address -v "tcp://192.168.123:5000"
+$ tangoctl server add -s GEPace/test -d Pace test/cryocon/1
+$ tangoctl device property write -d test/pace/1 -p address -v "tcp://192.168.123:5000"
 ```
 
 (the above example uses [tangoctl](https://pypi.org/project/tangoctl/). You would need
@@ -177,7 +177,7 @@ tango tool like [fandango](https://pypi.org/project/fandango/) or Jive)
 Launch the server with:
 
 ```terminal
-$ CryoConTempController test
+$ GEPace test
 ```
 
 ## TODO
