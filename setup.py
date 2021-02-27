@@ -14,7 +14,7 @@ setup(
     name="gepace",
     author="Tiago Coutinho",
     author_email="tcoutinho@cells.es",
-    version="1.1.1",
+    version="1.1.2",
     description="GE Pace library",
     long_description=description,
     long_description_content_type="text/markdown",
