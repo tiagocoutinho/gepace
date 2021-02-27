@@ -21,11 +21,14 @@ setup(
     entry_points={
         "console_scripts": [
             "GEPace = gepace.tango.server:main [tango]",
+        ],
+        'sinstruments.device': [
+            'Pace = gepace.simulator:Pace [simulator]'
         ]
     },
     extras_require={
         "tango": ["pytango"],
-        "simulator": ["sinstruments>=1", "scpi-protocol>=0.2"]
+        "simulator": ["sinstruments>=1.3", "scpi-protocol>=0.2"]
     },
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",

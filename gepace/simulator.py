@@ -10,7 +10,6 @@
 
     devices:
     - class: Pace
-      package: gepace.simulator
       transports:
       - type: tcp
         url: :5000
