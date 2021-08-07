@@ -9,6 +9,14 @@ requirements = ["connio>=0.1"]
 with open("README.md") as f:
     description = f.read()
 
+extras_require={
+    "tango": ["pytango"],
+    "simulator": ["sinstruments>=1.3", "scpi-protocol>=0.2"]
+}
+
+extras_require["all"] = list(
+    {pkg for pkgs in extras_require.values() for pkg in pkgs}
+)
 
 setup(
     name="gepace",
@@ -26,10 +34,7 @@ setup(
             'Pace = gepace.simulator:Pace [simulator]'
         ]
     },
-    extras_require={
-        "tango": ["pytango"],
-        "simulator": ["sinstruments>=1.3", "scpi-protocol>=0.2"]
-    },
+    extras_require=extras_require,
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
         "Intended Audience :: Developers",
