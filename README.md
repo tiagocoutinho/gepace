@@ -10,9 +10,6 @@ an optional [tango](https://tango-controls.org/) device server.
 
 It has been tested with the Pace 5000 model, but should work with other models.
 
-It can be used with either the ETH or the serial line connection (read below
-on the recommended way to setup a serial line connection)
-
 ## Installation
 
 From within your favorite python environment type:
@@ -82,20 +79,6 @@ async def main():
 
 asyncio.run(main())
 ```
-
-#### Serial line
-
-To access a serial line based Pace device it is strongly recommended you spawn
-a serial to tcp bridge using [ser2net](https://linux.die.net/man/8/ser2net) or
-[socat](https://linux.die.net/man/1/socat)
-
-Assuming your device is connected to `/dev/ttyS0` and the baudrate is set to 19200,
-here is how you could use socat to expose your device on the machine port 5000:
-
-`socat -v TCP-LISTEN:5000,reuseaddr,fork file:/dev/ttyS0,rawer,b19200,cs8,eol=10,icanon=1`
-
-It might be worth considering starting socat or ser2net as a service using
-[supervisor](http://supervisord.org/) or [circus](https://circus.rtfd.io/).
 
 ### Simulator
 
