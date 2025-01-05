@@ -102,6 +102,7 @@ explicitly:
 
 devices:
 - class: Pace
+  name: MyPressureDevice
   package: gepace.simulator
   transports:
   - type: tcp
